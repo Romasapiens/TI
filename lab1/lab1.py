@@ -28,7 +28,7 @@ def filter_russian_letters(s):
 def extract_rails(key):
     """Извлекает число из строки ключа для метода железнодорожной изгороди."""
     digits = ''.join(filter(str.isdigit, key))
-    return int(digits) if digits else 2  # значение по умолчанию 2
+    return int(digits) if digits else 1  # значение по умолчанию 1
 
 # --- Внутренние функции для железнодорожной изгороди (работают с любой строкой) ---
 def _rail_fence_encrypt(text, rails):
