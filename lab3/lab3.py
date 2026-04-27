@@ -90,8 +90,6 @@ class ElGamalApp:
         self.y_var = tk.StringVar()
         self.roots_list = []
         self.selected_root = None
-
-        # Пути к файлам (теперь не храним автоматически, будем спрашивать при сохранении)
         self.input_file_path = ""
 
         # Стиль
@@ -107,7 +105,7 @@ class ElGamalApp:
         param_frame = ttk.LabelFrame(main_frame, text="Параметры алгоритма", padding="5")
         param_frame.pack(fill=tk.X, pady=5)
 
-        ttk.Label(param_frame, text="Простое число p:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+        ttk.Label(param_frame, text="Простое число p (>255):").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
         self.p_entry = ttk.Entry(param_frame, textvariable=self.p_var, width=20)
         self.p_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
 
@@ -152,7 +150,7 @@ class ElGamalApp:
         self.file_label.pack(side=tk.LEFT, padx=10)
 
         # ---- Лог вывода ----
-        log_frame = ttk.LabelFrame(main_frame, text="Вывод (числа в десятичной системе, UTF-8)", padding="5")
+        log_frame = ttk.LabelFrame(main_frame, text="Вывод (числа в десятичной системе)", padding="5")
         log_frame.pack(fill=tk.BOTH, expand=True, pady=5)
 
         self.log_text = scrolledtext.ScrolledText(log_frame, font=('Courier', 10), wrap=tk.WORD)
@@ -176,6 +174,9 @@ class ElGamalApp:
         if not is_prime(p):
             messagebox.showerror("Ошибка", f"Число {p} не является простым")
             return
+        if p <= 255:
+            messagebox.showerror("Ошибка", "p должно быть больше 255, чтобы шифровать байты (0..255)")
+            return
         self.log(f"Поиск первообразных корней для p = {p}...")
         roots = find_all_primitive_roots(p)
         if not roots:
@@ -185,7 +186,8 @@ class ElGamalApp:
         self.roots_listbox.delete(0, tk.END)
         for r in roots:
             self.roots_listbox.insert(tk.END, str(r))
-        self.log(f"Найдено {len(roots)} корней: {roots}")
+        self.log(f"Всего найдено первообразных корней: {len(roots)}")
+        self.log(f"Список корней: {roots}")
 
     def on_root_select(self, event):
         selection = self.roots_listbox.curselection()
@@ -224,6 +226,9 @@ class ElGamalApp:
             return
         if not is_prime(p):
             messagebox.showerror("Ошибка", f"p = {p} не простое")
+            return
+        if p <= 255:
+            messagebox.showerror("Ошибка", "p должно быть > 255 (иначе байты не восстановятся)")
             return
 
         if self.selected_root is None:
@@ -282,11 +287,10 @@ class ElGamalApp:
                     m = byte_data[0]
                     a = quick_pow(g, k, p)
                     b = (quick_pow(y, k, p) * m) % p
-                    # Записываем a и b как 16-битные беззнаковые (двухбайтовые величины) little-endian
                     f_out.write(struct.pack('<HH', a & 0xFFFF, b & 0xFFFF))
                     if len(display_pairs) < 20:
                         display_pairs.append((a, b))
-                    # Генерируем следующее k (случайное, взаимно простое с p-1)
+                    # Генерируем следующее k
                     while True:
                         k = random.randint(2, p-2)
                         if gcd(k, p-1) == 1:
@@ -294,7 +298,7 @@ class ElGamalApp:
                     byte_data = f_in.read(1)
             self.log("Шифрование завершено.")
             self.log(f"Зашифрованный файл сохранён как: {output_file}")
-            self.log("Первые 20 пар (a, b) в десятичной системе (UTF-8):")
+            self.log("Первые 20 пар (a, b) в десятичной системе:")
             for i, (a, b) in enumerate(display_pairs):
                 self.log(f"  {i+1}: a={a}, b={b}")
         except Exception as e:
@@ -311,8 +315,10 @@ class ElGamalApp:
         except:
             messagebox.showerror("Ошибка", "Введите закрытый ключ x")
             return
+        if p <= 255:
+            messagebox.showerror("Ошибка", "p должно быть > 255")
+            return
 
-        # Выбор зашифрованного файла (пользователь сам выбирает)
         encrypted_path = filedialog.askopenfilename(
             title="Выберите зашифрованный файл",
             filetypes=[("Текстовые файлы", "*.txt"), ("Все файлы", "*.*")]
@@ -321,8 +327,6 @@ class ElGamalApp:
             self.log("Дешифрование отменено пользователем.")
             return
 
-        # Диалог сохранения расшифрованного файла
-        # По умолчанию предлагаем исходное расширение, если исходный файл был выбран, иначе .txt
         if self.input_file_path:
             default_ext = os.path.splitext(self.input_file_path)[1]
         else:
@@ -340,7 +344,7 @@ class ElGamalApp:
         try:
             with open(encrypted_path, 'rb') as f_in, open(decrypted_path, 'wb') as f_out:
                 while True:
-                    data = f_in.read(4)  # два 2-байтовых числа (всего 4 байта)
+                    data = f_in.read(4)
                     if len(data) < 4:
                         break
                     a, b = struct.unpack('<HH', data)
