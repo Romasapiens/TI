@@ -105,7 +105,7 @@ class ElGamalApp:
         param_frame = ttk.LabelFrame(main_frame, text="Параметры алгоритма", padding="5")
         param_frame.pack(fill=tk.X, pady=5)
 
-        ttk.Label(param_frame, text="Простое число p (>255):").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+        ttk.Label(param_frame, text="Простое число p (>255 и <=65535):").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
         self.p_entry = ttk.Entry(param_frame, textvariable=self.p_var, width=20)
         self.p_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
 
@@ -177,6 +177,9 @@ class ElGamalApp:
         if p <= 255:
             messagebox.showerror("Ошибка", "p должно быть больше 255, чтобы шифровать байты (0..255)")
             return
+        if p > 65535:
+            messagebox.showerror("Ошибка", "p должно быть <= 65535, иначе числа a и b не поместятся в 2 байта (формат 'HH')")
+            return
         self.log(f"Поиск первообразных корней для p = {p}...")
         roots = find_all_primitive_roots(p)
         if not roots:
@@ -230,6 +233,9 @@ class ElGamalApp:
         if p <= 255:
             messagebox.showerror("Ошибка", "p должно быть > 255 (иначе байты не восстановятся)")
             return
+        if p > 65535:
+            messagebox.showerror("Ошибка", "p должно быть <= 65535 для использования формата 'HH' (2 байта на число)")
+            return
 
         if self.selected_root is None:
             messagebox.showerror("Ошибка", "Выберите первообразный корень g из списка")
@@ -254,7 +260,7 @@ class ElGamalApp:
             messagebox.showerror("Ошибка", f"k должно быть в интервале (1, {p-1})")
             return
         if gcd(first_k, p-1) != 1:
-            messagebox.showerror("Ошибка", f"k должно быть взаимно простым с {p-1}")
+            messagebox.showerror("Ошибка", f"k должно быть взаимно просто с {p-1}")
             return
 
         if not self.input_file_path:
@@ -290,7 +296,6 @@ class ElGamalApp:
                     f_out.write(struct.pack('<HH', a & 0xFFFF, b & 0xFFFF))
                     if len(display_pairs) < 20:
                         display_pairs.append((a, b))
-                    # Генерируем следующее k
                     while True:
                         k = random.randint(2, p-2)
                         if gcd(k, p-1) == 1:
@@ -317,6 +322,9 @@ class ElGamalApp:
             return
         if p <= 255:
             messagebox.showerror("Ошибка", "p должно быть > 255")
+            return
+        if p > 65535:
+            messagebox.showerror("Ошибка", "p должно быть <= 65535 (формат 'HH')")
             return
 
         encrypted_path = filedialog.askopenfilename(
